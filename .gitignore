@@ -13,7 +13,7 @@ temp/*
 # Python virtual environments
 f5tts_env/
 wav2lip_env/
-venv/
+venvs/
 env/
 .env/
 
