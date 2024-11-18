@@ -1,0 +1,63 @@
+# .gitignore
+
+# Model checkpoints and large files
+models/f5tts/*
+models/wav2lip/*
+!models/f5tts/.gitkeep
+!models/wav2lip/.gitkeep
+
+# Temporary files
+temp/*
+!temp/.gitkeep
+
+# Python virtual environments
+f5tts_env/
+wav2lip_env/
+venv/
+env/
+.env/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+log/
+
+# Local development settings
+.env
+.env.local
+*.local
+
+# Generated files
+output/
+results/
