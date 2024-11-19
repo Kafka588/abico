@@ -8,6 +8,9 @@ from pathlib import Path
 
 class TalkingAvatarService:
     def __init__(self):
+        # Add environment variable setting at the start
+        os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+        
         # Model initialization
         self.wav2lip_model = None
         self.tts_model = F5TTSService()  # Initialize F5TTS service
