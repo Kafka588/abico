@@ -14,6 +14,7 @@ temp/*
 f5tts_env/
 wav2lip_env/
 venvs/
+venv/
 env/
 .env/
 
