@@ -7,6 +7,7 @@ class F5TTSService:
     def __init__(self):
         self.base_path = Path(__file__).parent.parent
         self.venv_path = self.base_path / "venvs" / "f5tts"
+        self.models_path = self.base_path / "models" / "F5-TTS"
         
         if os.name == 'nt':  # Windows
             self.activate_script = str(self.venv_path / "Scripts" / "activate.bat")
@@ -15,10 +16,15 @@ class F5TTSService:
             self.activate_script = str(self.venv_path / "bin" / "activate")
             self.f5tts_cli = str(self.venv_path / "bin" / "f5-tts_infer-cli")
             
+        # Config path
+        self.config_path = str(self.models_path / "src" / "f5_tts" / "infer" / "examples" / "basic" / "basic.toml")
+            
         print(f"Venv activation script: {self.activate_script}")
         print(f"F5-TTS CLI path: {self.f5tts_cli}")
+        print(f"F5-TTS config path: {self.config_path}")
         print(f"Activation script exists: {Path(self.activate_script).exists()}")
         print(f"F5-TTS CLI exists: {Path(self.f5tts_cli).exists()}")
+        print(f"Config file exists: {Path(self.config_path).exists()}")
 
     def verify_installation(self):
         """Verify F5-TTS installation in the virtual environment"""
@@ -61,36 +67,35 @@ class F5TTSService:
         try:
             # Ensure output directory exists
             output_path = Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.mkdir(parents=True, exist_ok=True)
 
-            # For Windows, use direct executable path
-            if os.name == 'nt':
-                cmd = f'"{self.f5tts_cli}" --model "F5-TTS" --gen_text "{text}"'
-            else:
-                cmd = [
-                    'bash', '-c',
-                    f'source "{self.activate_script}" && '
-                    f'"{self.f5tts_cli}" --model "F5-TTS" '
-                    f'--gen_text "{text}" '
-                ]
+            # Base command with minimal required parameters
+            base_cmd = [
+                str(self.f5tts_cli),
+                '--model', 'F5-TTS',
+                '--gen_text', text,
+                '--output', str(output_path)
+            ]
 
+            # Add reference audio and text if provided
             if reference_audio:
-                cmd += f' --ref_audio "{reference_audio}"'
+                base_cmd.extend(['--ref_audio', str(reference_audio)])
                 if reference_text:
-                    cmd += f' --ref_text "{reference_text}"'
+                    base_cmd.extend(['--ref_text', reference_text])
                 else:
-                    cmd += ' --ref_text ""'
-                    
-            cmd += f' --output "{output_path}"'
+                    base_cmd.extend(['--ref_text', ''])
 
-            print(f"Running command: {cmd}")
+            # Add config file if it exists
+            if Path(self.config_path).exists():
+                base_cmd.extend(['--config', self.config_path])
+
+            print(f"Running F5TTS command: {' '.join(base_cmd)}")
             
             # Run command
             result = subprocess.run(
-                cmd,
+                base_cmd,
                 capture_output=True,
-                text=True,
-                shell=True  # Use shell=True for Windows
+                text=True
             )
 
             print(f"STDOUT: {result.stdout}")
@@ -103,4 +108,5 @@ class F5TTSService:
             return True
 
         except Exception as e:
-            raise Exception(f"F5-TTS generation failed: {str(e)}")
+            print(f"F5-TTS generation failed: {str(e)}")
+            raise
