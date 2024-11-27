@@ -8,12 +8,17 @@ from pathlib import Path
 
 class TalkingAvatarService:
     def __init__(self):
-        # Model initialization
-        self.wav2lip_model = None
-        self.tts_model = F5TTSService()  # Initialize F5TTS service
-        
-        # Verify F5TTS installation
-        if not self.tts_model.verify_installation():
+        try:
+            # Initialize F5TTS service
+            self.tts_model = F5TTSService()
+            
+            # Verify F5TTS installation
+            if not self.tts_model.verify_installation():
+                print("F5TTS verification failed. Please check your installation.")
+                raise RuntimeError("F5TTS is not properly installed or accessible")
+                
+        except Exception as e:
+            print(f"Error initializing TTS service: {e}")
             raise RuntimeError("F5TTS is not properly installed or accessible")
         
     def generate_talking_avatar(
@@ -241,6 +246,7 @@ def create_gradio_interface():
     with gr.Blocks() as demo:
         gr.Markdown("# Advanced Talking Avatar Generator")
         
+        
         with gr.Row():
             with gr.Column():
                 # Text Input
@@ -297,7 +303,7 @@ if __name__ == "__main__":
     # Create and launch the interface
     demo = create_gradio_interface()
     demo.launch(
-        server_name="0.0.0.0",  # Makes it accessible from other devices on the network
-        server_port=7860,       # Default Gradio port
-        share=False             # Set to True if you want a public URL
+        server_name="0.0.0.0",  
+        server_port=7860,       
+        share=False             
     )

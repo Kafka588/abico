@@ -7,6 +7,8 @@ models/wav2lip/*
 !models/wav2lip/.gitkeep
 
 # Temporary files
+test/*
+tests/*
 temp/*
 !temp/.gitkeep
 
