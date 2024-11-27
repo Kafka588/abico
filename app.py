@@ -4,21 +4,16 @@ import subprocess
 import uuid
 import shutil
 from typing import List, Optional
-from services.f5tts_service import F5TTSService
-from services.wav2lip_service import Wav2LipService
 from pathlib import Path
 from utils.text_to_audio import generate_audio_for_text_chunks  # Import the utility function
 from utils.video_processor import preprocess_video_for_audio
+import configparser
 
 class TalkingAvatarService:
     def __init__(self):
         # Initialize output directory first
         self.output_dir = Path("temp/output")
         self.output_dir.mkdir(exist_ok=True, parents=True)
-        
-        # Then initialize the models
-        self.tts_model = F5TTSService()
-        self.wav2lip_model = Wav2LipService()
         
         # Create fixed temp directory
         self.temp_dir = Path("temp")
@@ -29,52 +24,58 @@ class TalkingAvatarService:
         self.audio_dir.mkdir(exist_ok=True, parents=True)
         self.audio_path = self.audio_dir / "generated_audio.wav"
         
-        # Verify F5TTS installation
-        if not self.tts_model.verify_installation():
-            print("F5TTS verification failed. Please check your installation.")
-            raise RuntimeError("F5TTS is not properly installed or accessible")
-                
         # Add default reference paths
         self.defaults_dir = Path("defaults")
         self.default_ref_audio = self.defaults_dir / "reference_audio.wav"
         self.default_ref_text = "Лаборатори сургуулиудтай гурван жилийн өмнөөс гэрээ байгуулснаар манай сурлагын амжилт эрс сайжирсанд баяртай байгаа."
         
+        # Add Wav2Lip paths
+        self.wav2lip_dir = Path("models/Easy-Wav2Lip")
+    
     def generate_talking_avatar(
         self, 
         text: str, 
         avatar_image: str, 
         reference_audio: Optional[str] = None,
         reference_text: Optional[str] = None,
-        progress_callback: Optional[gr.Progress] = None
+        speed: float = 1.0,
+        quality: str = "Improved",
+        wav2lip_version: str = "Wav2Lip",
+        nosmooth: bool = True,
+        pad_up: int = 0,
+        pad_down: int = 0,
+        pad_left: int = 0,
+        pad_right: int = 0,
+        **kwargs
     ) -> str:
-        """
-        Comprehensive method to generate a talking avatar
-        """
         try:
-            print("\nProcessing talking avatar request:")
-            print(f"Text: {text}")
-            print(f"Avatar Input: {avatar_image}")
-            print(f"Reference Audio: {reference_audio}")
-            print(f"Reference Text: {reference_text}")
+            # Validate inputs
+            if not text or not text.strip():
+                raise ValueError("Text input cannot be empty")
+            if not avatar_image:
+                raise ValueError("Avatar image/video input is required")
+            if not os.path.exists(avatar_image):
+                raise ValueError(f"Avatar file not found: {avatar_image}")
 
-            # Step 1: Generate audio using F5TTS
-            if progress_callback is not None:
-                progress_callback(0.3, desc="Generating audio...")
-            
-            audio_path = self._generate_audio(
+            # Generate audio
+            progress = 0.0
+            audio_path = self.generate_audio(
                 text=text,
+                output_path=self.audio_dir,
                 reference_audio=reference_audio,
-                reference_text=reference_text
+                reference_text=reference_text,
+                speed=speed
             )
             
             if not audio_path:
                 raise Exception("Audio generation failed")
 
-            # Step 2: Generate talking avatar using Wav2Lip
-            if progress_callback is not None:
-                progress_callback(0.6, desc="Synchronizing lips...")
-                
-            # Add retry logic for Wav2Lip
+            # Update progress
+            progress = 0.5
+            if kwargs.get('progress_callback'):
+                kwargs['progress_callback'](progress, desc="Audio generated, starting lip sync...")
+            
+            # Generate talking avatar
             max_retries = 3
             for attempt in range(max_retries):
                 try:
@@ -82,25 +83,20 @@ class TalkingAvatarService:
                         avatar_path=avatar_image,
                         audio_path=audio_path,
                         job_id=str(uuid.uuid4()),
-                        quality="Fast",  # Use faster processing to reduce potential face detection issues
-                        wav2lip_version="Wav2Lip",  # Use standard Wav2Lip instead of GAN version
-                        nosmooth=True,  # Keep nosmooth for better frame-by-frame sync
-                        pad_up=10,      # Add some padding to help with face detection
-                        pad_down=10,
-                        pad_left=10,
-                        pad_right=10
+                        **kwargs
                     )
                     
                     if video:
-                        print(f"Video generated successfully: {video}")
-                        if progress_callback is not None:
-                            progress_callback(1.0, desc="Processing complete!")
+                        if kwargs.get('progress_callback'):
+                            kwargs['progress_callback'](1.0, desc="Processing complete!")
                         return video
                     
                 except Exception as e:
                     print(f"Attempt {attempt + 1} failed: {str(e)}")
                     if attempt < max_retries - 1:
                         print("Retrying...")
+                        if kwargs.get('progress_callback'):
+                            kwargs['progress_callback'](progress, desc=f"Retry attempt {attempt + 2}...")
                         continue
                     else:
                         raise Exception(f"Failed after {max_retries} attempts")
@@ -108,205 +104,218 @@ class TalkingAvatarService:
             raise Exception("Failed to generate video")
 
         except Exception as e:
-            error_msg = f"Error in processing: {str(e)}"
-            print(error_msg)
+            print(f"Error in generate_talking_avatar: {str(e)}")
             raise
     
-    def _generate_audio(
+    def generate_audio(
         self, 
         text: str, 
+        output_path: Path, 
         reference_audio: Optional[str] = None,
         reference_text: Optional[str] = None,
         speed: float = 1.0
-    ) -> Optional[str]:
-        """
-        Advanced audio generation with F5TTS
-        
-        Args:
-            text (str): Text to convert to speech
-            reference_audio (Optional[str]): Reference audio for voice style
-            reference_text (Optional[str]): Reference text for voice cloning
-        
-        Returns:
-            str: Path to generated audio file
-        """
+    ) -> str:
         try:
+            # Use defaults if not provided
+            ref_audio = reference_audio if reference_audio else str(self.default_ref_audio)
+            ref_text = reference_text if reference_text else self.default_ref_text
+
             print("\nGenerating audio with F5TTS:")
             print(f"Text: {text}")
-            print(f"Reference Audio: {reference_audio}")
-            print(f"Reference Text: {reference_text}")
-            print(f"Output Directory: {self.audio_dir}")
-            
-            # Use the utility function to handle sentence splitting and audio generation
-            combined_audio_path = generate_audio_for_text_chunks(
+            print(f"Reference Audio: {ref_audio}")
+            print(f"Reference Text: {ref_text}")  # This should now show the default text
+            print(f"Output Directory: {output_path}")
+
+            # Generate audio using F5TTS
+            audio_path = generate_audio_for_text_chunks(
                 text=text,
-                reference_audio_path=reference_audio,
-                output_dir=str(self.audio_dir)
+                output_dir=output_path,
+                reference_audio=ref_audio,
+                reference_text=ref_text,  # Pass the actual reference text
+                speed=speed
             )
-            
-            if combined_audio_path:
-                print(f"Audio generated successfully at: {combined_audio_path}")
-                print(f"File size: {os.path.getsize(combined_audio_path)} bytes")
-                return combined_audio_path
-            else:
-                print("Audio generation failed!")
-                return None
-                
+
+            if not audio_path:
+                raise Exception("Audio generation failed")
+
+            print(f"Audio generated successfully at: {audio_path}")
+            print(f"File size: {os.path.getsize(audio_path)} bytes")
+
+            return audio_path
+
         except Exception as e:
-            print(f"Audio generation error: {e}")
-            return None
+            print(f"Error generating audio: {str(e)}")
+            raise
     
-    def _synchronize_lips(
-        self,
-        avatar_path: str,
-        audio_path: str,
-        job_id: str,
-        **kwargs
-    ) -> str:
+    def _synchronize_lips(self, avatar_path: str, audio_path: str, job_id: str, **kwargs) -> str:
         try:
             # Convert paths to absolute paths
             abs_audio_path = str(Path(audio_path).absolute())
             abs_avatar_path = str(Path(avatar_path).absolute())
             
-            if not Path(abs_audio_path).exists():
-                raise FileNotFoundError(f"Audio file not found: {abs_audio_path}")
-            if not Path(abs_avatar_path).exists():
-                raise FileNotFoundError(f"Avatar file not found: {abs_avatar_path}")
+            # Create explicit output path
+            output_path = self.output_dir / f"output_{job_id}.mp4"
+            output_path = str(output_path.absolute())
+            
+            # Create config.ini for Wav2Lip
+            config = {
+                'OPTIONS': {
+                    'video_file': abs_avatar_path,
+                    'vocal_file': abs_audio_path,
+                    'output_file': output_path,  # Add explicit output path
+                    'quality': kwargs.get('quality', 'Fast'),
+                    'output_height': 'full resolution',
+                    'wav2lip_version': kwargs.get('wav2lip_version', 'Wav2Lip'),
+                    'use_previous_tracking_data': 'True',
+                    'nosmooth': str(kwargs.get('nosmooth', True)).lower(),
+                    'preview_window': 'False'
+                },
+                'PADDING': {
+                    'U': str(kwargs.get('pad_up', 10)),
+                    'D': str(kwargs.get('pad_down', 10)),
+                    'L': str(kwargs.get('pad_left', 10)),
+                    'R': str(kwargs.get('pad_right', 10))
+                },
+                'MASK': {
+                    'size': '0.5',
+                    'erosion': '2',
+                    'blur': '3',
+                    'threshold': '0.85',
+                    'feathering': '3',
+                    'mouth_tracking': 'False',
+                    'debug_mask': 'False'
+                },
+                'OTHER': {
+                    'batch_process': 'False',
+                    'output_suffix': '',  # Remove suffix since we're using explicit path
+                    'include_settings_in_suffix': 'False',  # Disable suffix settings
+                    'preview_input': 'False',
+                    'preview_settings': 'False',
+                    'frame_to_preview': '0'
+                }
+            }
+            
+            # Write config file
+            config_path = self.wav2lip_dir / "config.ini"
+            self._write_config(config_path, config)
+            
+            print(f"\nRunning Wav2Lip with:")
+            print(f"Avatar: {abs_avatar_path}")
+            print(f"Audio: {abs_audio_path}")
+            
+            # Run Wav2Lip
+            cmd = f'cd "{self.wav2lip_dir}" && python run.py'
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                encoding='utf-8'
+            )
+            
+            print("\nWav2Lip STDOUT:")
+            print(result.stdout)
+            print("\nWav2Lip STDERR:")
+            print(result.stderr)
+            
+            if result.returncode != 0:
+                raise Exception(f"Wav2Lip failed with return code {result.returncode}: {result.stderr}")
 
-            print(f"Using audio file (absolute path): {abs_audio_path}")
-            print(f"Using avatar file (absolute path): {abs_avatar_path}")
+            # Check for output file at explicit path
+            if not Path(output_path).exists():
+                raise FileNotFoundError(f"Output file not found at: {output_path}")
             
-            # Create preprocessed video path with absolute path
-            preprocessed_video = self.temp_dir / f"preprocessed_{job_id}.mp4"
-            preprocessed_video = preprocessed_video.absolute()
-            
-            # Ensure temp directory exists
-            preprocessed_video.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Preprocess video
-            processed_avatar_path = preprocess_video_for_audio(
-                video_path=abs_avatar_path,
-                audio_path=abs_audio_path,
-                output_path=str(preprocessed_video)
-            )
-            
-            if not Path(processed_avatar_path).exists():
-                raise FileNotFoundError(f"Preprocessed video not found: {processed_avatar_path}")
-            
-            # Generate output path for this job
-            output_video = self.output_dir / f"output_{job_id}.mp4"
-            output_video = output_video.absolute()
-            
-            # Generate the talking avatar using preprocessed video
-            result_path = self.wav2lip_model.generate_talking_avatar(
-                video_path=processed_avatar_path,
-                audio_path=abs_audio_path,
-                output_path=str(output_video),
-                **kwargs
-            )
-            
-            # Clean up preprocessed video
-            try:
-                if Path(processed_avatar_path).exists():
-                    Path(processed_avatar_path).unlink()
-            except Exception as e:
-                print(f"Warning: Failed to clean up preprocessed video: {e}")
-            
-            if not result_path or not Path(result_path).exists():
-                raise FileNotFoundError(f"Wav2Lip failed to generate output video: {result_path}")
-            
-            print(f"Wav2Lip output video generated at: {result_path}")
-            return str(result_path)
-            
+            return output_path
+
         except Exception as e:
             print(f"Lip synchronization error: {str(e)}")
             raise
 
-def process_talking_avatar(
-    text: str, 
-    avatar_input: str,
-    use_default_ref: bool,
-    custom_ref_audio: Optional[str],
-    custom_ref_text: Optional[str],
-    speed: float = 1.0,
-    quality: str = "Improved",
-    wav2lip_version: str = "Wav2Lip",
-    nosmooth: bool = True,
-    pad_up: int = 0,
-    pad_down: int = 0,
-    pad_left: int = 0,
-    pad_right: int = 0,
-    progress: gr.Progress = gr.Progress()
-):
-    try:
-        # Initialize service if not already initialized
-        avatar_service = TalkingAvatarService()
+    def _write_config(self, config_path: Path, config_data: dict):
+        config = configparser.ConfigParser()
+        for section, values in config_data.items():
+            config[section] = {}
+            for key, value in values.items():
+                config[section][key] = str(value)
         
-        # Input validation
-        if not text:
-            return None, "Please provide input text"
-        if not avatar_input:
-            return None, "Please provide an avatar video/image"
-
-        # Handle reference audio and text
-        try:
-            if use_default_ref:
-                # Check if default reference exists
-                if not avatar_service.default_ref_audio.exists():
-                    return None, f"Default reference audio not found at {avatar_service.default_ref_audio}"
-                reference_audio = str(avatar_service.default_ref_audio)
-                reference_text = avatar_service.default_ref_text
-            else:
-                # Validate custom reference
-                if not custom_ref_audio:
-                    return None, "Please provide a custom reference audio file"
-                if not custom_ref_text:
-                    return None, "Please provide the text content of the reference audio"
-                reference_audio = custom_ref_audio
-                reference_text = custom_ref_text
-
-            print(f"\nReference settings:")
-            print(f"Using default reference: {use_default_ref}")
-            print(f"Reference audio path: {reference_audio}")
-            print(f"Reference text: {reference_text}")
-
-        except Exception as e:
-            print(f"Error setting up references: {str(e)}")
-            return None, f"Error with reference setup: {str(e)}"
-
-        # Generate the talking avatar
-        print("\nStarting avatar generation:")
-        print(f"Input text: {text}")
-        print(f"Avatar input: {avatar_input}")
-        print(f"Speed: {speed}")
-        print(f"Quality: {quality}")
-
-        video = avatar_service.generate_talking_avatar(
-            text=text,
-            avatar_image=avatar_input,
-            reference_audio=reference_audio,
-            reference_text=reference_text,
-            progress_callback=progress
-        )
-        
-        if video:
-            print(f"Successfully generated video at: {video}")
-            return video, "Talking avatar generated successfully!"
-        else:
-            return None, "Failed to generate video"
-
-    except Exception as e:
-        error_msg = f"Error in processing: {str(e)}"
-        print(f"\nDetailed error information:")
-        print(error_msg)
-        import traceback
-        print(traceback.format_exc())
-        return None, error_msg
+        with open(config_path, 'w', encoding='utf-8') as f:
+            config.write(f)
 
 def create_gradio_interface():
     # Initialize service
     avatar_service = TalkingAvatarService()
     
+    # Define the processing function within this scope to access avatar_service
+    def process_talking_avatar(
+        text: str, 
+        avatar_input: str,
+        use_default_ref: bool,
+        custom_ref_audio: Optional[str],
+        custom_ref_text: Optional[str],
+        speed: float = 1.0,
+        quality: str = "Improved",
+        wav2lip_version: str = "Wav2Lip",
+        nosmooth: bool = True,
+        pad_up: int = 0,
+        pad_down: int = 0,
+        pad_left: int = 0,
+        pad_right: int = 0
+    ) -> tuple[Optional[str], str]:
+        try:
+            # Validate required inputs
+            if not text:
+                return None, "Please enter some text for the avatar to speak"
+            if not avatar_input:
+                return None, "Please upload an avatar image or video"
+
+            # Print input parameters
+            print("\nStarting avatar generation:")
+            print(f"Input text: {text}")
+            print(f"Avatar input: {avatar_input}")
+            print(f"Speed: {speed}")
+            print(f"Quality: {quality}")
+
+            # Determine reference audio and text
+            reference_audio = None
+            reference_text = None
+            
+            if use_default_ref:
+                reference_audio = str(avatar_service.default_ref_audio)
+                reference_text = avatar_service.default_ref_text
+            else:
+                reference_audio = custom_ref_audio
+                reference_text = custom_ref_text
+
+            # Generate the talking avatar
+            video = avatar_service.generate_talking_avatar(
+                text=text,
+                avatar_image=avatar_input,
+                reference_audio=reference_audio,
+                reference_text=reference_text,
+                speed=speed,
+                quality=quality,
+                wav2lip_version=wav2lip_version,
+                nosmooth=nosmooth,
+                pad_up=pad_up,
+                pad_down=pad_down,
+                pad_left=pad_left,
+                pad_right=pad_right
+            )
+            
+            if video:
+                return video, "Talking avatar generated successfully!"
+            else:
+                return None, "Failed to generate video"
+
+        except Exception as e:
+            error_msg = f"Error in processing: {str(e)}"
+            print(f"\nDetailed error information:")
+            print(error_msg)
+            import traceback
+            print(traceback.format_exc())
+            return None, error_msg
+
+    # Create the interface
     with gr.Blocks() as demo:
         gr.Markdown("# Advanced Talking Avatar Generator")
         
@@ -316,7 +325,8 @@ def create_gradio_interface():
                 text_input = gr.Textbox(
                     label="Enter Text", 
                     placeholder="What should the avatar say?",
-                    lines=3
+                    lines=3,
+                    interactive=True
                 )
                 
                 # Avatar Upload
@@ -413,9 +423,24 @@ def create_gradio_interface():
             output_video = gr.Video(label="Generated Talking Avatar")
             error_output = gr.Textbox(label="Status/Errors", visible=True)
         
+        # Modify the process_talking_avatar function to handle validation
+        def process_with_validation(*args):
+            # Extract text and avatar from args
+            text = args[0]
+            avatar = args[1]
+            
+            # Validate inputs
+            if not text or not text.strip():
+                return None, "Please enter some text for the avatar to speak"
+            if not avatar:
+                return None, "Please upload an avatar image or video"
+                
+            # If validation passes, call the original process function
+            return process_talking_avatar(*args)
+
         # Event Handling
         generate_btn.click(
-            fn=process_talking_avatar,
+            fn=process_with_validation,  # Use the wrapper function instead
             inputs=[
                 text_input, 
                 avatar_upload,
