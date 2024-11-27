@@ -72,11 +72,11 @@ class F5TTSService:
             print(f"Error running command: {str(e)}")
             raise
 
-    def generate_audio(self, text, output_path, reference_audio=None, reference_text=None):
+    def generate_audio(self, text, output_path, reference_audio=None, reference_text=None, speed=1.0):
         try:
-            # Convert output_path to Path object
-            output_path = Path(output_path)
-            output_path.mkdir(parents=True, exist_ok=True)
+            # Convert output_path to Path object and ensure it's a directory
+            output_dir = Path(output_path)
+            output_dir.mkdir(parents=True, exist_ok=True)
 
             # Build command
             cmd_parts = [
@@ -87,7 +87,8 @@ class F5TTSService:
                 f'--gen_text "{text}"',
                 '--vocoder_name vocos',
                 '--remove_silence false',
-                f'--output_dir "{output_path}"'  # Add explicit output directory
+                f'--output_dir "{output_dir}"',
+                f'--speed {speed}'
             ]
 
             if reference_audio:
@@ -108,14 +109,8 @@ class F5TTSService:
             if result.returncode != 0:
                 raise Exception(f"Command failed with code {result.returncode}")
 
-            # Look for the output file in both the specified path and default location
-            output_file = output_path / "infer_cli_out.wav"
-            if not output_file.exists():
-                default_output = Path("tests") / "infer_cli_out.wav"
-                if default_output.exists():
-                    # Move the file to the desired location
-                    default_output.rename(output_file)
-            
+            # The output file will be 'infer_cli_out.wav' in the specified directory
+            output_file = output_dir / "infer_cli_out.wav"
             if output_file.exists():
                 print(f"Generated audio file: {output_file}")
                 return str(output_file)

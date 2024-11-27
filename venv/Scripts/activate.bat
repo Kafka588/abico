@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set VIRTUAL_ENV=D:\Thesis\abico\abico\venv
+set VIRTUAL_ENV=C:\Users\huree\Documents\abico\abico\venv
 
 if not defined PROMPT set PROMPT=$P$G
 
