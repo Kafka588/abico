@@ -82,7 +82,7 @@ class TalkingAvatarService:
                         avatar_path=avatar_image,
                         audio_path=audio_path,
                         job_id=str(uuid.uuid4()),
-                        quality="Fast",  # Use faster processing to reduce potential face detection issues
+                        quality="Enhanced",  # Use faster processing to reduce potential face detection issues
                         wav2lip_version="Wav2Lip",  # Use standard Wav2Lip instead of GAN version
                         nosmooth=True,  # Keep nosmooth for better frame-by-frame sync
                         pad_up=10,      # Add some padding to help with face detection

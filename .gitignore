@@ -64,3 +64,5 @@ log/
 # Generated files
 output/
 results/
+references/
+abico_env/

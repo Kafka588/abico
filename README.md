@@ -1,26 +1,3 @@
-# Abico Structure
-
-├── abico/
-│ ├── temp/ # Temporary files  # Haven't implemented yet
-│ ├── result/ # Result files # Haven't implemented yet
-│ ├── models/ # Model checkpoints
-│ │ ├── f5tts/ # This is the original repository i only added custom models forlder to use my finetuned mongolian model with corresponding vocab.txt file
-│ │ └── wav2lip/
-│ ├── services/
-│ │ ├── **init**.py # Haven't implemented and dont know how to implement it yet
-│ │ ├── f5tts_service.py
-│ │ └── wav2lip_service.py
-│ ├── venvs/ 
-│ │ ├── f5tts_venv
-│ │ └── wav2lip_venv
-│ ├── utils/
-│ │ ├── **init**.py # Haven't implemented and dont know how to implement it yet
-│ │ └── file_manager.py Haven't implemented and dont know how to implement it yet
-│ ├── app.py
-│ └── requirements.txt # Haven't implemented yet
-│ └── start.bat # Haven't implemented yet
-
-
 - Current installation process when it comes to use it on another computer
 
 1. Clone base project
