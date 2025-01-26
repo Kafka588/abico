@@ -8,7 +8,7 @@ This project used open source projects that allows you to generate talking avata
 
 It uses fine tuned models for F5-TTS to generate speech in Mongolian. The model is trained on 100 hours of Mongolian speech. 
 Demo generated audio:
-[Listen to sample audio](path/to/demo.wav)
+[Listen to sample audio](demo/demo.wav)
 
 Lip Synchronized result:
 ![Lip Synchronized result](demo/demo.mp4)
