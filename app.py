@@ -33,18 +33,11 @@ class TalkingAvatarService:
         if not self.tts_model.verify_installation():
             print("F5TTS verification failed. Please check your installation.")
             raise RuntimeError("F5TTS is not properly installed or accessible")
-                
-        # Add default reference paths
-        self.defaults_dir = Path("defaults")
-        self.default_ref_audio = self.defaults_dir / "reference_audio.wav"
-        self.default_ref_text = "Лаборатори сургуулиудтай гурван жилийн өмнөөс гэрээ байгуулснаар манай сурлагын амжилт эрс сайжирсанд баяртай байгаа."
-        
+
     def generate_talking_avatar(
         self, 
         text: str, 
         avatar_image: str, 
-        reference_audio: Optional[str] = None,
-        reference_text: Optional[str] = None,
         progress_callback: Optional[gr.Progress] = None
     ) -> str:
         """
@@ -54,8 +47,6 @@ class TalkingAvatarService:
             print("\nProcessing talking avatar request:")
             print(f"Text: {text}")
             print(f"Avatar Input: {avatar_image}")
-            print(f"Reference Audio: {reference_audio}")
-            print(f"Reference Text: {reference_text}")
 
             # Step 1: Generate audio using F5TTS
             if progress_callback is not None:
@@ -63,8 +54,7 @@ class TalkingAvatarService:
             
             audio_path = self._generate_audio(
                 text=text,
-                reference_audio=reference_audio,
-                reference_text=reference_text
+                speed=1.0
             )
             
             if not audio_path:
@@ -114,46 +104,31 @@ class TalkingAvatarService:
     
     def _generate_audio(
         self, 
-        text: str, 
-        reference_audio: Optional[str] = None,
-        reference_text: Optional[str] = None,
+        text: str,
         speed: float = 1.0
     ) -> Optional[str]:
         """
-        Advanced audio generation with F5TTS
-        
-        Args:
-            text (str): Text to convert to speech
-            reference_audio (Optional[str]): Reference audio for voice style
-            reference_text (Optional[str]): Reference text for voice cloning
-        
-        Returns:
-            str: Path to generated audio file
+        Advanced audio generation with F5TTS using smart reference selection
         """
         try:
             print("\nGenerating audio with F5TTS:")
             print(f"Text: {text}")
-            print(f"Reference Audio: {reference_audio}")
-            print(f"Reference Text: {reference_text}")
             print(f"Output Directory: {self.audio_dir}")
-            
-            # Use the utility function to handle sentence splitting and audio generation
-            combined_audio_path = generate_audio_for_text_chunks(
+
+            # Generate audio using smart reference selection
+            output_path = self.tts_model.generate_audio(
                 text=text,
-                reference_audio_path=reference_audio,
-                output_dir=str(self.audio_dir)
+                output_path=str(self.audio_dir),
+                speed=speed
             )
-            
-            if combined_audio_path:
-                print(f"Audio generated successfully at: {combined_audio_path}")
-                print(f"File size: {os.path.getsize(combined_audio_path)} bytes")
-                return combined_audio_path
-            else:
-                print("Audio generation failed!")
-                return None
-                
+
+            if not output_path or not Path(output_path).exists():
+                raise Exception("Audio file not generated")
+
+            return output_path
+
         except Exception as e:
-            print(f"Audio generation error: {e}")
+            print(f"Audio generation error: {str(e)}")
             return None
     
     def _synchronize_lips(
@@ -225,9 +200,6 @@ class TalkingAvatarService:
 def process_talking_avatar(
     text: str, 
     avatar_input: str,
-    use_default_ref: bool,
-    custom_ref_audio: Optional[str],
-    custom_ref_text: Optional[str],
     speed: float = 1.0,
     quality: str = "Improved",
     wav2lip_version: str = "Wav2Lip",
@@ -248,44 +220,16 @@ def process_talking_avatar(
         if not avatar_input:
             return None, "Please provide an avatar video/image"
 
-        # Handle reference audio and text
-        try:
-            if use_default_ref:
-                # Check if default reference exists
-                if not avatar_service.default_ref_audio.exists():
-                    return None, f"Default reference audio not found at {avatar_service.default_ref_audio}"
-                reference_audio = str(avatar_service.default_ref_audio)
-                reference_text = avatar_service.default_ref_text
-            else:
-                # Validate custom reference
-                if not custom_ref_audio:
-                    return None, "Please provide a custom reference audio file"
-                if not custom_ref_text:
-                    return None, "Please provide the text content of the reference audio"
-                reference_audio = custom_ref_audio
-                reference_text = custom_ref_text
-
-            print(f"\nReference settings:")
-            print(f"Using default reference: {use_default_ref}")
-            print(f"Reference audio path: {reference_audio}")
-            print(f"Reference text: {reference_text}")
-
-        except Exception as e:
-            print(f"Error setting up references: {str(e)}")
-            return None, f"Error with reference setup: {str(e)}"
-
         # Generate the talking avatar
         print("\nStarting avatar generation:")
         print(f"Input text: {text}")
         print(f"Avatar input: {avatar_input}")
         print(f"Speed: {speed}")
         print(f"Quality: {quality}")
-
+        
         video = avatar_service.generate_talking_avatar(
             text=text,
             avatar_image=avatar_input,
-            reference_audio=reference_audio,
-            reference_text=reference_text,
             progress_callback=progress
         )
         
@@ -325,85 +269,24 @@ def create_gradio_interface():
                     type="filepath"
                 )
                 
-                # Add F5TTS Options accordion
-                with gr.Accordion("Advanced F5TTS Options", open=False) as f5tts_options:
-                    # Speed slider
-                    speed_slider = gr.Slider(
-                        minimum=0.5,
-                        maximum=2.0,
-                        value=1.0,
-                        step=0.1,
-                        label="Speech Speed"
-                    )
-                    
-                    # Reference Voice Options
-                    gr.Markdown("### Reference Voice Options")
-                    use_default_ref = gr.Checkbox(
-                        value=True,
-                        label="Use Default Reference Voice",
-                        interactive=True
-                    )
-                    
-                    # Default reference info
-                    default_ref_info = gr.Markdown(
-                        value=f"Using default reference audio: {avatar_service.default_ref_audio.name}\n" +
-                              f"Default reference text: {avatar_service.default_ref_text}",
-                        visible=True
-                    )
-                    
-                    # Custom reference options
-                    reference_audio = gr.Audio(
-                        label="Custom Reference Audio",
-                        type="filepath",
-                        interactive=True,
-                        visible=False  # Initially hidden
-                    )
-                    reference_text = gr.Textbox(
-                        label="Custom Reference Text",
-                        placeholder="Enter the text content of the reference audio",
-                        lines=2,
-                        interactive=True,
-                        visible=False  # Initially hidden
-                    )
-                    
-                    # Add visibility toggle for reference options
-                    def toggle_ref_options(use_default):
-                        return [
-                            gr.update(visible=use_default),  # default_ref_info
-                            gr.update(visible=not use_default),  # reference_audio
-                            gr.update(visible=not use_default)   # reference_text
-                        ]
-                    
-                    use_default_ref.change(
-                        fn=toggle_ref_options,
-                        inputs=[use_default_ref],
-                        outputs=[
-                            default_ref_info,
-                            reference_audio,
-                            reference_text
-                        ]
-                    )
-                
-                # Existing Wav2Lip Options accordion
-                with gr.Accordion("Advanced Wav2Lip Options", open=False):
-                    quality = gr.Radio(
-                        choices=["Fast", "Improved", "Enhanced"],
-                        value="Enhanced",
-                        label="Quality"
-                    )
-                    wav2lip_version = gr.Radio(
-                        choices=["Wav2Lip", "Wav2Lip_GAN"],
-                        value="Wav2Lip",
-                        label="Wav2Lip Version"
-                    )
-                    nosmooth = gr.Checkbox(
-                        value=True,
-                        label="No Smooth (better for quick movements)"
-                    )
-                    pad_up = gr.Number(value=0, label="Pad Up")
-                    pad_down = gr.Number(value=0, label="Pad Down")
-                    pad_left = gr.Number(value=0, label="Pad Left")
-                    pad_right = gr.Number(value=0, label="Pad Right")
+                # Speed slider (moved outside accordion for simplicity)
+                speed_slider = gr.Slider(
+                    minimum=0.5,
+                    maximum=2.0,
+                    value=1.0,
+                    step=0.1,
+                    label="Speech Speed"
+                )
+
+                # Wav2Lip Options
+                nosmooth = gr.Checkbox(
+                    value=True,
+                    label="No Smooth (better for quick movements)"
+                )
+                pad_up = gr.Number(value=-10, label="Pad Up")
+                pad_down = gr.Number(value=-10, label="Pad Down")
+                pad_left = gr.Number(value=-10, label="Pad Left")
+                pad_right = gr.Number(value=-10, label="Pad Right")
                 
                 # Generate Button
                 generate_btn = gr.Button("Generate Talking Avatar", variant="primary")
@@ -415,16 +298,20 @@ def create_gradio_interface():
         
         # Event Handling
         generate_btn.click(
-            fn=process_talking_avatar,
+            fn=lambda text, avatar, speed, ns, pu, pd, pl, pr: process_talking_avatar(
+                text=text,
+                avatar_input=avatar,
+                speed=speed,
+                nosmooth=ns,
+                pad_up=pu,
+                pad_down=pd,
+                pad_left=pl,
+                pad_right=pr
+            ),
             inputs=[
-                text_input, 
+                text_input,
                 avatar_upload,
-                use_default_ref,
-                reference_audio,
-                reference_text,
                 speed_slider,
-                quality,
-                wav2lip_version,
                 nosmooth,
                 pad_up,
                 pad_down,

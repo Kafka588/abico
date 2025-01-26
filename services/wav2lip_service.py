@@ -1,17 +1,13 @@
 import os
-import sys
 import configparser
 import subprocess
 from pathlib import Path
 import shutil
 import uuid
-import re
-import glob
 
 class Wav2LipService:
     def __init__(self):
         self.wav2lip_dir = Path("models/Easy-Wav2Lip")
-        self.venv_path = Path("venvs/wav2lip/Scripts/activate.bat")
         self.temp_dir = self.wav2lip_dir / "temp"
         self.temp_dir.mkdir(exist_ok=True, parents=True)
 
@@ -23,16 +19,16 @@ class Wav2LipService:
             
             # Run Wav2Lip
             cmd = [
-                "cmd", "/c",
-                str(self.venv_path),
-                "&&",
-                "cd", str(self.wav2lip_dir),
-                "&&",
-                "python", "run.py"
+                "python",
+                str(self.wav2lip_dir / "run.py")
             ]
 
             print(f"Running command: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            result = subprocess.run(cmd, 
+                                  cwd=str(self.wav2lip_dir),
+                                  capture_output=True, 
+                                  text=True, 
+                                  encoding='utf-8')
 
             print(f"Wav2Lip STDOUT: {result.stdout}")
             print(f"Wav2Lip STDERR: {result.stderr}")
