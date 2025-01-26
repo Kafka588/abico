@@ -10,11 +10,9 @@ It uses fine-tuned models for F5-TTS to generate speech in Mongolian. The model 
 
 ### Sample Outputs
 
-#### Generated Audio Sample:
-https://user-images.githubusercontent.com/Kafka588/abico/demo/demo.wav
 
-#### Lip Synchronized Video Sample:
-https://user-images.githubusercontent.com/Kafka588/abico/demo/demo.mp4
+#### Video Demo on YouTube:
+[![Watch the demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YzPnC2BntIw)
 
 ### Installation
 
