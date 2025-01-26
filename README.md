@@ -1,23 +1,26 @@
 ## Abico Project Avatar Generator
 
-This project used open source projects that allows you to generate talking avatars using F5-TTS and Easy-Wav2Lip models.
+This project uses open source projects that allow you to generate talking avatars using F5-TTS and Easy-Wav2Lip models.
 
 ### Demo
 
 ![Demo](demo/demo.gif)
 
-It uses fine tuned models for F5-TTS to generate speech in Mongolian. The model is trained on 100 hours of Mongolian speech. 
-Demo generated audio:
-![Listen to sample audio](demo/demo.wav)
+It uses fine-tuned models for F5-TTS to generate speech in Mongolian. The model is trained on 100 hours of Mongolian speech. 
 
-Lip Synchronized result:
-![Lip Synchronized result](demo/demo.mp4)
+### Sample Outputs
+
+#### Generated Audio Sample:
+https://user-images.githubusercontent.com/Kafka588/abico/demo/demo.wav
+
+#### Lip Synchronized Video Sample:
+https://user-images.githubusercontent.com/Kafka588/abico/demo/demo.mp4
 
 ### Installation
 
 1. Clone the repository
 2. Install the dependencies
-```
+```bash
 # Create virtual environment
 python3.10 -m venv venv
 
@@ -36,10 +39,10 @@ git clone https://github.com/SWivid/F5-TTS.git
 git clone https://github.com/anothermartz/Easy-Wav2Lip.git
 
 cd ..
+```
 
-```
 3. Run the app.py file
-```
+```bash
 python app.py
 ```
 
