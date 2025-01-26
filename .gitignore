@@ -1,10 +1,10 @@
 # .gitignore
 
 # Model checkpoints and large files
-models/f5tts/*
-models/wav2lip/*
-!models/f5tts/.gitkeep
-!models/wav2lip/.gitkeep
+models/F5-TTS/*
+models/Easy-Wav2Lip/*
+!models/F5-TTS/.gitkeep
+!models/Easy-Wav2Lip/.gitkeep
 
 # Temporary files
 test/*
@@ -15,8 +15,8 @@ temp/*
 # Python virtual environments
 f5tts_env/
 wav2lip_env/
-venvs/
 venv/
+venv/*
 env/
 .env/
 
@@ -65,4 +65,3 @@ log/
 output/
 results/
 references/
-abico_env/

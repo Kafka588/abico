@@ -5,22 +5,52 @@ from pathlib import Path
 import re
 from pydub import AudioSegment
 import json
+import platform
+import os
+
+def get_base_path():
+    system = platform.system()
+    if system == "Windows":
+        return Path(os.path.dirname(os.path.abspath(__file__)))
+    elif system == "Linux":
+        return Path("/path/to/your/linux/base/directory")  # Update this with your Linux path
+    else:
+        return Path(os.path.dirname(os.path.abspath(__file__)))
+
+# Get base path based on OS
+base_path = get_base_path()
+model_folder = base_path / "models" / "F5-TTS" / "custom_models" / "mongolian"
+references_folder = base_path / "references"
 
 class F5TTSService:
     def __init__(self):
-        self.model_path = "model_226800.pt"
-        self.vocab_path = "vocab.txt"
-        self.references_folder = "references"
+        # Ensure directories exist
+        model_folder.mkdir(parents=True, exist_ok=True)
+        references_folder.mkdir(parents=True, exist_ok=True)
+
+        self.model_path = model_folder / "model_226800.pt"
+        self.vocab_path = model_folder / "vocab.txt"
+        self.references_folder = references_folder
         self.use_ema = True
         
+        # Check if required files exist
+        if not self.model_path.exists():
+            raise FileNotFoundError(f"Model file not found at {self.model_path}")
+        if not self.vocab_path.exists():
+            raise FileNotFoundError(f"Vocab file not found at {self.vocab_path}")
+        
         # Load reference configurations
-        with open('references/config.json', 'r', encoding='utf-8') as f:
+        config_path = references_folder / "config.json"
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found at {config_path}")
+            
+        with open(config_path, 'r', encoding='utf-8') as f:
             self.references = json.load(f)
         
         self.tts = F5TTS(
             model_type="F5-TTS",
-            ckpt_file=self.model_path,
-            vocab_file=self.vocab_path,
+            ckpt_file=str(self.model_path),
+            vocab_file=str(self.vocab_path),
             use_ema=self.use_ema
         )
 
@@ -35,17 +65,17 @@ class F5TTSService:
         
         # Map reference keys to filenames
         filename_map = {
-            "ultra_short": "speaker_353_segment_989",
-            "short": "speaker_353_segment_99",
-            "medium": "speaker_353_segment_228",
-            "long_1": "speaker_353_segment_969_967",
-            "long_2": "speaker_353_segment_625_620",
-            "long_3": "speaker_353_segment_746_738_763",
-            "very_long": "speaker_353_segment_587_674_708_717"
+            "ultra_short": "ultra_short",
+            "short": "short",
+            "medium": "medium",
+            "long_1": "long_1",
+            "long_2": "long_2",
+            "long_3": "long_3",
+            "very_long": "long_4"
         }
         
         # Get full path to reference audio
-        ref_path = Path(self.references_folder) / f"{filename_map[best_ref_key]}.wav"
+        ref_path = self.references_folder / f"{filename_map[best_ref_key]}.wav"
         
         return {
             'text': best_ref['text'],
@@ -54,6 +84,10 @@ class F5TTSService:
 
     def generate_speech(self, text: str, speed: float = 1.0, nfe_steps: int = 32) -> tuple:
         try:
+            # Create temp directory if it doesn't exist
+            temp_dir = base_path / "temp"
+            temp_dir.mkdir(exist_ok=True)
+            
             # Split text into sentences
             sentences = re.split(r'(?<=[.!?]) +', text)
             sentences = [s.strip() for s in sentences if s.strip()]
@@ -63,10 +97,9 @@ class F5TTSService:
             
             for i, sentence in enumerate(sentences, 1):
                 print(f"\nProcessing sentence {i}/{len(sentences)}: {sentence}")
-                temp_path = f"temp_sentence_{i}.wav"
+                temp_path = temp_dir / f"temp_sentence_{i}.wav"
                 start_time = time.time()
                 
-                # Get best matching reference for this sentence
                 ref = self.get_best_reference(sentence)
                 
                 self.tts.infer(
@@ -74,28 +107,26 @@ class F5TTSService:
                     ref_text=ref['text'].lower().strip(),
                     ref_file=ref['audio_path'],
                     nfe_step=nfe_steps,
-                    file_wave=temp_path,
+                    file_wave=str(temp_path),
                     speed=speed
                 )
                 
                 sentence_time = time.time() - start_time
                 total_time += sentence_time
                 
-                audio_segments.append(AudioSegment.from_wav(temp_path))
+                audio_segments.append(AudioSegment.from_wav(str(temp_path)))
                 print(f"Sentence {i} generated in {sentence_time:.2f} seconds")
             
             # Combine and save
-            output_path = "output.wav"
+            output_path = base_path / "output.wav"
             combined_audio = sum(audio_segments)
-            combined_audio.export(output_path, format="wav")
+            combined_audio.export(str(output_path), format="wav")
             
             # Cleanup
-            for i in range(len(sentences)):
-                temp_file = Path(f"temp_sentence_{i+1}.wav")
-                if temp_file.exists():
-                    temp_file.unlink()
+            for file in temp_dir.glob("temp_sentence_*.wav"):
+                file.unlink()
             
-            return output_path, f"Generated {len(sentences)} sentences in {total_time:.2f} seconds"
+            return str(output_path), f"Generated {len(sentences)} sentences in {total_time:.2f} seconds"
             
         except Exception as e:
             return None, f"Error: {str(e)}"
