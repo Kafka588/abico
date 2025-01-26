@@ -10,9 +10,8 @@ It uses fine-tuned models for F5-TTS to generate speech in Mongolian. The model 
 
 ### Sample Outputs
 
-
 #### Video Demo on YouTube:
-[![Watch the demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YzPnC2BntIw)
+[![Watch the demo](https://img.youtube.com/vi/YzPnC2BntIw/maxresdefault.jpg)](https://www.youtube.com/watch?v=YzPnC2BntIw)
 
 ### Installation
 
