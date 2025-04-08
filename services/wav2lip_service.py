@@ -4,12 +4,19 @@ import subprocess
 from pathlib import Path
 import shutil
 import uuid
+import sys
 
 class Wav2LipService:
     def __init__(self):
-        self.wav2lip_dir = Path("models/Easy-Wav2Lip")
+        # Find the project root directory
+        self.project_root = Path(os.path.dirname(os.path.abspath(__file__))).parent
+        self.wav2lip_dir = self.project_root / "models" / "Easy-Wav2Lip"
         self.temp_dir = self.wav2lip_dir / "temp"
         self.temp_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Store the current Python executable path
+        self.python_executable = sys.executable
+        print(f"Using Python interpreter: {self.python_executable}")
 
     def generate_talking_avatar(self, video_path: str, audio_path: str, output_path: str, **kwargs) -> str:
         try:
@@ -17,10 +24,16 @@ class Wav2LipService:
             config_path = self.wav2lip_dir / "config.ini"
             self._create_config(config_path, video_path=video_path, audio_path=audio_path, **kwargs)
             
-            # Run Wav2Lip
+            # Get the absolute path to run.py to avoid path issues
+            run_script = self.wav2lip_dir / "run.py"
+            
+            if not run_script.exists():
+                raise FileNotFoundError(f"Wav2Lip run script not found at: {run_script}")
+                
+            # Run Wav2Lip - use the current Python executable from the virtual environment
             cmd = [
-                "python",
-                str(self.wav2lip_dir / "run.py")
+                self.python_executable,  # Use our current Python with all packages
+                str(run_script)
             ]
 
             print(f"Running command: {' '.join(cmd)}")

@@ -1,10 +1,7 @@
 # .gitignore
 
 # Model checkpoints and large files
-models/F5-TTS/*
-models/Easy-Wav2Lip/*
-!models/F5-TTS/.gitkeep
-!models/Easy-Wav2Lip/.gitkeep
+models/
 
 # Temporary files
 test/*

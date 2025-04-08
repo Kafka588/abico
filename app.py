@@ -37,7 +37,7 @@ class TalkingAvatarService:
     def generate_talking_avatar(
         self, 
         text: str, 
-        avatar_image: str, 
+        avatar_image, 
         progress_callback: Optional[gr.Progress] = None
     ) -> str:
         """
@@ -47,6 +47,10 @@ class TalkingAvatarService:
             print("\nProcessing talking avatar request:")
             print(f"Text: {text}")
             print(f"Avatar Input: {avatar_image}")
+
+            # Handle temporary file objects from Gradio
+            if hasattr(avatar_image, 'name'):
+                avatar_image = avatar_image.name
 
             # Step 1: Generate audio using F5TTS
             if progress_callback is not None:
@@ -199,7 +203,7 @@ class TalkingAvatarService:
 
 def process_talking_avatar(
     text: str, 
-    avatar_input: str,
+    avatar_input,  # Remove type annotation to handle any input type
     speed: float = 1.0,
     quality: str = "Improved",
     wav2lip_version: str = "Wav2Lip",
@@ -219,6 +223,12 @@ def process_talking_avatar(
             return None, "Please provide input text"
         if not avatar_input:
             return None, "Please provide an avatar video/image"
+            
+        # Handle temporary file objects from Gradio
+        if hasattr(avatar_input, 'name'):
+            avatar_path = avatar_input.name
+        else:
+            avatar_path = avatar_input
 
         # Generate the talking avatar
         print("\nStarting avatar generation:")
@@ -229,7 +239,7 @@ def process_talking_avatar(
         
         video = avatar_service.generate_talking_avatar(
             text=text,
-            avatar_image=avatar_input,
+            avatar_image=avatar_path,  # Pass the extracted path
             progress_callback=progress
         )
         
@@ -266,7 +276,7 @@ def create_gradio_interface():
                 # Avatar Upload
                 avatar_upload = gr.File(
                     label="Upload Avatar Image or Video", 
-                    type="filepath"
+                    type="file"
                 )
                 
                 # Speed slider (moved outside accordion for simplicity)
