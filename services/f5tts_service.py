@@ -23,7 +23,7 @@ class F5TTSService:
         self.custom_vocab = self.models_path / "vocab.txt"
         
         # References path
-        self.references_folder = self.project_root / "references"
+        self.references_folder = self.project_root / "abico-reference"
         self.references_folder.mkdir(parents=True, exist_ok=True)
         
         # Load reference configurations

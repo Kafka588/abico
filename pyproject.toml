@@ -1,0 +1,35 @@
+[project]
+name = "abico"
+version = "0.1.0"
+description = "AI-Powered Avatar Generator for Abico LLC"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+basicsr = "1.4.2"
+gfpgan = "1.3.8"
+batch-face = "1.4.0"
+dlib = "19.24.2"
+facexlib = "0.3.0"
+ffmpeg-python = "0.2.0"
+numpy = "1.26.4"
+pydub = "0.25.1"
+tqdm = "4.67.1"
+matplotlib = "3.10.1"
+librosa = "0.11.0"
+soundfile = "0.13.1"
+transformers = "4.48.1"
+accelerate = "1.3.0"
+gradio = "3.45.2"
+datasets = "2.14.0"
+huggingface-hub = "0.26.2"
+tokenizers = "0.21.0"
+pathlib = "*"
+ipython = "8.16.1"
+gdown = "4.7.1"
+moviepy = "1.0.3" 
