@@ -6,6 +6,7 @@ import shutil
 import uuid
 import sys
 import platform
+import ffmpeg
 
 class Wav2LipService:
     def __init__(self):
@@ -23,24 +24,26 @@ class Wav2LipService:
         self.wrapper_script = self.wav2lip_dir / ("run_wav2lip.bat" if platform.system() == "Windows" else "run_wav2lip.sh")
         if not self.wrapper_script.exists():
             self._create_wrapper_script()
+            
+        # Verify ffmpeg is available
+        try:
+            ffmpeg.probe('dummy')
+            print("Python ffmpeg library is available")
+        except Exception as e:
+            print(f"Warning: Python ffmpeg library error: {str(e)}")
 
     def _create_wrapper_script(self):
         """Create a wrapper script for Wav2Lip that sets the PATH correctly"""
         is_windows = platform.system() == "Windows"
-        ffmpeg_path = self.project_root / "tools" / "ffmpeg-master-latest-win64-gpl" / "bin" if is_windows else "/usr/bin"
         
         with open(self.wrapper_script, 'w') as f:
             if is_windows:
                 f.write('@echo off\n')
-                f.write(f'set PATH=%PATH%;{ffmpeg_path}\n')
-                f.write(f'echo Using ffmpeg from: {ffmpeg_path}\n')
-                f.write(f'where ffmpeg\n')
+                f.write(f'echo Using Python ffmpeg library\n')
                 f.write(f'python "{self.wav2lip_dir}\\run.py" %*\n')
             else:
                 f.write('#!/bin/bash\n')
-                f.write(f'export PATH=$PATH:{ffmpeg_path}\n')
-                f.write(f'echo "Using ffmpeg from: {ffmpeg_path}"\n')
-                f.write(f'which ffmpeg\n')
+                f.write(f'echo "Using Python ffmpeg library"\n')
                 f.write(f'python "{self.wav2lip_dir}/run.py" "$@"\n')
         
         # Make sure the script is executable
@@ -55,23 +58,20 @@ class Wav2LipService:
             # Use the wrapper script instead of running Python directly
             cmd = [str(self.wrapper_script)]
             
-            # Set environment variables to ensure ffmpeg is found
-            env = os.environ.copy()
-            ffmpeg_path = self.project_root / "tools" / "ffmpeg-master-latest-win64-gpl" / "bin"
-            if platform.system() == "Windows":
-                env["PATH"] = f"{ffmpeg_path};{env.get('PATH', '')}"
-            else:
-                env["PATH"] = f"{ffmpeg_path}:{env.get('PATH', '')}"
-            
             print(f"Running command: {' '.join(cmd)}")
-            print(f"With PATH: {env['PATH']}")
+            
+            # Check if the input video exists and get its details using python-ffmpeg
+            try:
+                video_info = ffmpeg.probe(video_path)
+                print(f"Video info: {video_info}")
+            except Exception as e:
+                print(f"Warning: Could not probe video with python-ffmpeg: {str(e)}")
             
             result = subprocess.run(cmd, 
                                   cwd=str(self.wav2lip_dir),
                                   capture_output=True, 
                                   text=True, 
-                                  encoding='utf-8',
-                                  env=env)
+                                  encoding='utf-8')
 
             print(f"Wav2Lip STDOUT: {result.stdout}")
             print(f"Wav2Lip STDERR: {result.stderr}")
