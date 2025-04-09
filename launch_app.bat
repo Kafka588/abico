@@ -11,18 +11,18 @@ if not exist venv\Scripts\activate.bat (
 REM Activate virtual environment
 call venv\Scripts\activate.bat
 
-REM Check if port 7860 is already in use
-netstat -ano | findstr :7860 >nul
+REM Find an available port
+set PORT=7860
+:PORT_CHECK
+netstat -ano | findstr :%PORT% >nul
 if %ERRORLEVEL% EQU 0 (
-    echo Port 7860 is already in use. Trying to find an available port...
-    set PORT=7861
-    echo Using port %PORT% instead.
-) else (
-    set PORT=7860
+    set /a PORT+=1
+    goto PORT_CHECK
 )
 
 REM Run the application with the specified port
 echo Running application on port %PORT%...
+start http://127.0.0.1:%PORT%
 python app.py --server_port %PORT%
 
 REM Keep the window open if there's an error

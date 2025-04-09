@@ -3,6 +3,7 @@ import os
 import subprocess
 import uuid
 import shutil
+import argparse
 from typing import List, Optional
 from services.f5tts_service import F5TTSService
 from services.wav2lip_service import Wav2LipService
@@ -335,10 +336,15 @@ def create_gradio_interface():
 
 # Launch the Interface
 if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Launch the Abico Avatar Generator')
+    parser.add_argument('--server_port', type=int, default=7860, help='Port to run the server on')
+    args = parser.parse_args()
+    
     # Create and launch the interface
     demo = create_gradio_interface()
     demo.launch(
         server_name="127.0.0.1",  
-        server_port=7860,       
+        server_port=args.server_port,       
         share=False             
     )
