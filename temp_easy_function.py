@@ -6,7 +6,6 @@ import dlib
 import gdown
 import pickle
 import re
-import ffmpeg
 from models import Wav2Lip
 from base64 import b64encode
 from urllib.parse import urlparse
@@ -17,56 +16,36 @@ device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is
 
 
 def get_video_details(filename):
-    try:
-        # Use python-ffmpeg instead of system executables
-        probe = ffmpeg.probe(filename)
-        video_info = next(s for s in probe['streams'] if s['codec_type'] == 'video')
-        
-        # Get resolution
-        width = int(video_info['width'])
-        height = int(video_info['height'])
-        resolution = width * height
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_format",
+        "-show_streams",
+        "-of",
+        "json",
+        filename,
+    ]
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    info = json.loads(result.stdout)
 
-        # Get fps
-        fps = eval(video_info['avg_frame_rate'])
+    # Get video stream
+    video_stream = next(
+        stream for stream in info["streams"] if stream["codec_type"] == "video"
+    )
 
-        # Get length
-        length = float(probe['format']['duration'])
+    # Get resolution
+    width = int(video_stream["width"])
+    height = int(video_stream["height"])
+    resolution = width * height
 
-        return width, height, fps, length
-    except Exception as e:
-        print(f"Error getting video details with python-ffmpeg: {str(e)}")
-        # Fallback to original method if python-ffmpeg fails
-        cmd = [
-            "ffprobe",
-            "-v",
-            "error",
-            "-show_format",
-            "-show_streams",
-            "-of",
-            "json",
-            filename,
-        ]
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        info = json.loads(result.stdout)
+    # Get fps
+    fps = eval(video_stream["avg_frame_rate"])
 
-        # Get video stream
-        video_stream = next(
-            stream for stream in info["streams"] if stream["codec_type"] == "video"
-        )
+    # Get length
+    length = float(info["format"]["duration"])
 
-        # Get resolution
-        width = int(video_stream["width"])
-        height = int(video_stream["height"])
-        resolution = width * height
-
-        # Get fps
-        fps = eval(video_stream["avg_frame_rate"])
-
-        # Get length
-        length = float(info["format"]["duration"])
-
-        return width, height, fps, length
+    return width, height, fps, length
 
 
 def show_video(file_path):
