@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import uuid
 import sys
+import platform
 
 class Wav2LipService:
     def __init__(self):
@@ -17,6 +18,33 @@ class Wav2LipService:
         # Store the current Python executable path
         self.python_executable = sys.executable
         print(f"Using Python interpreter: {self.python_executable}")
+        
+        # Check if the wrapper script exists, if not, create it
+        self.wrapper_script = self.wav2lip_dir / ("run_wav2lip.bat" if platform.system() == "Windows" else "run_wav2lip.sh")
+        if not self.wrapper_script.exists():
+            self._create_wrapper_script()
+
+    def _create_wrapper_script(self):
+        """Create a wrapper script for Wav2Lip that sets the PATH correctly"""
+        is_windows = platform.system() == "Windows"
+        ffmpeg_path = self.project_root / "tools" / "ffmpeg-master-latest-win64-gpl" / "bin" if is_windows else "/usr/bin"
+        
+        with open(self.wrapper_script, 'w') as f:
+            if is_windows:
+                f.write('@echo off\n')
+                f.write(f'set PATH=%PATH%;{ffmpeg_path}\n')
+                f.write(f'echo Using ffmpeg from: {ffmpeg_path}\n')
+                f.write(f'where ffmpeg\n')
+                f.write(f'python "{self.wav2lip_dir}\\run.py" %*\n')
+            else:
+                f.write('#!/bin/bash\n')
+                f.write(f'export PATH=$PATH:{ffmpeg_path}\n')
+                f.write(f'echo "Using ffmpeg from: {ffmpeg_path}"\n')
+                f.write(f'which ffmpeg\n')
+                f.write(f'python "{self.wav2lip_dir}/run.py" "$@"\n')
+        
+        # Make sure the script is executable
+        os.chmod(self.wrapper_script, 0o755)
 
     def generate_talking_avatar(self, video_path: str, audio_path: str, output_path: str, **kwargs) -> str:
         try:
@@ -24,31 +52,33 @@ class Wav2LipService:
             config_path = self.wav2lip_dir / "config.ini"
             self._create_config(config_path, video_path=video_path, audio_path=audio_path, **kwargs)
             
-            # Get the absolute path to run.py to avoid path issues
-            run_script = self.wav2lip_dir / "run.py"
+            # Use the wrapper script instead of running Python directly
+            cmd = [str(self.wrapper_script)]
             
-            if not run_script.exists():
-                raise FileNotFoundError(f"Wav2Lip run script not found at: {run_script}")
-                
-            # Run Wav2Lip - use the current Python executable from the virtual environment
-            cmd = [
-                self.python_executable,  # Use our current Python with all packages
-                str(run_script)
-            ]
-
+            # Set environment variables to ensure ffmpeg is found
+            env = os.environ.copy()
+            ffmpeg_path = self.project_root / "tools" / "ffmpeg-master-latest-win64-gpl" / "bin"
+            if platform.system() == "Windows":
+                env["PATH"] = f"{ffmpeg_path};{env.get('PATH', '')}"
+            else:
+                env["PATH"] = f"{ffmpeg_path}:{env.get('PATH', '')}"
+            
             print(f"Running command: {' '.join(cmd)}")
+            print(f"With PATH: {env['PATH']}")
+            
             result = subprocess.run(cmd, 
                                   cwd=str(self.wav2lip_dir),
                                   capture_output=True, 
                                   text=True, 
-                                  encoding='utf-8')
+                                  encoding='utf-8',
+                                  env=env)
 
             print(f"Wav2Lip STDOUT: {result.stdout}")
             print(f"Wav2Lip STDERR: {result.stderr}")
 
             if result.returncode != 0:
                 raise Exception(f"Wav2Lip failed with code {result.returncode}")
-
+                
             # Find the output file from Wav2Lip's temp directory
             temp_output = self.temp_dir / "output.mp4"
             if not temp_output.exists():
