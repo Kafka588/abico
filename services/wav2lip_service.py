@@ -27,7 +27,8 @@ class Wav2LipService:
             
         # Verify ffmpeg is available
         try:
-            ffmpeg.probe('dummy')
+            # Try to run a simple ffmpeg command
+            ffmpeg.input('dummy').output('dummy.mp4').overwrite_output().run(capture_stdout=True, capture_stderr=True)
             print("Python ffmpeg library is available")
         except Exception as e:
             print(f"Warning: Python ffmpeg library error: {str(e)}")
@@ -62,8 +63,10 @@ class Wav2LipService:
             
             # Check if the input video exists and get its details using python-ffmpeg
             try:
-                video_info = ffmpeg.probe(video_path)
-                print(f"Video info: {video_info}")
+                # Use a simpler approach with ffmpeg
+                stream = ffmpeg.input(video_path)
+                info = stream.ffprobe()
+                print(f"Video info: {info}")
             except Exception as e:
                 print(f"Warning: Could not probe video with python-ffmpeg: {str(e)}")
             
