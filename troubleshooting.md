@@ -16,6 +16,18 @@ This guide will help you resolve common issues that might occur during installat
    C:\Path\To\Python3.10\python.exe install_windows.bat
    ```
 
+### dlib Installation Issues
+
+**Problem**: The installation fails with "Failed building wheel for dlib" or "failed to build installable wheels for some pyproject.toml based projects".
+
+**Solution**:
+1. Run the dedicated dlib fix script:
+   - On Windows: `fix_dlib.bat`
+   - On Linux: `./fix_dlib.sh`
+2. If that doesn't work, try installing the required build tools:
+   - On Windows: Install Visual Studio Build Tools with C++ support
+   - On Linux: Install build-essential, cmake, and other required packages
+
 ### Poetry Installation Issues
 
 **Problem**: The script fails when trying to install dependencies with Poetry.
@@ -54,6 +66,17 @@ This guide will help you resolve common issues that might occur during installat
 3. If the problem persists, you can try creating the virtual environment manually:
    ```
    python3.10 -m venv venv
+   ```
+
+### Port Already in Use
+
+**Problem**: The application fails to start with "cannot find empty port 7860-7860".
+
+**Solution**:
+1. Use the `launch_app.bat` script which automatically finds an available port
+2. Or manually specify a different port:
+   ```
+   python app.py --server_port 8000
    ```
 
 ### Application Crashes

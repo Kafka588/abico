@@ -25,7 +25,26 @@ pip install --upgrade pip
 echo "Installing PyTorch with CUDA 11.8 support..."
 pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 torchaudio==2.0.2+cu118 --index-url https://download.pytorch.org/whl/cu118
 
-# Install dependencies from pyproject.toml
+# Install system dependencies for dlib
+echo "Installing system dependencies for dlib..."
+if command -v apt-get &> /dev/null; then
+    # Debian/Ubuntu
+    sudo apt-get update
+    sudo apt-get install -y build-essential cmake libx11-dev libopenblas-dev liblapack-dev
+elif command -v yum &> /dev/null; then
+    # CentOS/RHEL
+    sudo yum groupinstall -y "Development Tools"
+    sudo yum install -y cmake libX11-devel openblas-devel lapack-devel
+elif command -v pacman &> /dev/null; then
+    # Arch Linux
+    sudo pacman -S --noconfirm base-devel cmake libx11 openblas lapack
+fi
+
+# Install dlib
+echo "Installing dlib..."
+pip install dlib==19.24.2
+
+# Install other dependencies from pyproject.toml
 echo "Installing project dependencies..."
 pip install poetry
 poetry install

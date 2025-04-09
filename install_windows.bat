@@ -22,7 +22,11 @@ REM Install PyTorch with CUDA 11.8 support
 echo Installing PyTorch with CUDA 11.8 support...
 pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 torchaudio==2.0.2+cu118 --index-url https://download.pytorch.org/whl/cu118
 
-REM Install dependencies from pyproject.toml
+REM Install dlib separately with pre-built wheel
+echo Installing dlib...
+pip install https://github.com/jloh02/dlib/releases/download/v19.22/dlib-19.22.99-cp310-cp310-win_amd64.whl
+
+REM Install other dependencies from pyproject.toml
 echo Installing project dependencies...
 pip install poetry
 poetry install
@@ -63,4 +67,4 @@ if not exist abico-reference (
 )
 
 echo === Installation complete! ===
-echo To run the application, use: run_windows.bat 
+echo To run the application, use: launch_app.bat 
