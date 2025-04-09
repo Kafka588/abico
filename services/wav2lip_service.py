@@ -63,10 +63,10 @@ class Wav2LipService:
             
             # Check if the input video exists and get its details using python-ffmpeg
             try:
-                # Use a simpler approach with ffmpeg
-                stream = ffmpeg.input(video_path)
-                info = stream.ffprobe()
-                print(f"Video info: {info}")
+                # Use ffmpeg.probe to get video info
+                probe = ffmpeg.probe(video_path)
+                video_info = next(s for s in probe['streams'] if s['codec_type'] == 'video')
+                print(f"Video info: {video_info}")
             except Exception as e:
                 print(f"Warning: Could not probe video with python-ffmpeg: {str(e)}")
             

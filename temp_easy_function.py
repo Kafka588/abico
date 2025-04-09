@@ -19,9 +19,8 @@ device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is
 def get_video_details(filename):
     try:
         # Use python-ffmpeg instead of system executables
-        stream = ffmpeg.input(filename)
-        info = stream.ffprobe()
-        video_info = next(s for s in info['streams'] if s['codec_type'] == 'video')
+        probe = ffmpeg.probe(filename)
+        video_info = next(s for s in probe['streams'] if s['codec_type'] == 'video')
         
         # Get resolution
         width = int(video_info['width'])
@@ -32,7 +31,7 @@ def get_video_details(filename):
         fps = eval(video_info['avg_frame_rate'])
 
         # Get length
-        length = float(info['format']['duration'])
+        length = float(probe['format']['duration'])
 
         return width, height, fps, length
     except Exception as e:
